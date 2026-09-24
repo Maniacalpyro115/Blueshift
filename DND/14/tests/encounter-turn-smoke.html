@@ -1,0 +1,211 @@
+<!doctype html>
+<html lang="en">
+<head><meta charset="UTF-8"><title>Encounter turn smoke test</title></head>
+<body>
+  <canvas id="game" width="900" height="650"></canvas>
+  <script>
+    let syntheticTime = 0;
+    let stopAnimationFrames = false;
+    let controllerId = null;
+    window.requestAnimationFrame = (callback) => setTimeout(() => {
+      if (stopAnimationFrames) return;
+      syntheticTime += 1000 / 60;
+      callback(syntheticTime);
+    }, 0);
+
+    function fail(error) {
+      stopAnimationFrames = true;
+      if (controllerId !== null) clearInterval(controllerId);
+      document.body.dataset.smoke = "fail";
+      document.body.dataset.error = String(error?.stack || error?.message || error);
+    }
+    window.addEventListener("error", (event) => fail(`${event.message} @ ${event.filename}:${event.lineno}`));
+    window.addEventListener("unhandledrejection", (event) => fail(event.reason));
+  </script>
+  <script src="../players/party.js"></script><script src="../engine/player-runtime.js"></script>
+  <script src="../players/carian.js"></script><script src="../players/bravouros.js"></script>
+  <script src="../players/thanos.js"></script><script src="../players/bucky.js"></script>
+  <script src="../players/tarhun.js"></script><script src="../engine/loader.js"></script>
+  <script src="../enemies/sable.js"></script><script src="../enemies/zach.js"></script>
+  <script src="../enemies/dandelion.js"></script>
+  <script src="../engine/constants.js"></script><script src="../engine/utils.js"></script>
+  <script src="../engine/flow.js"></script><script src="../engine/extensions.js"></script>
+  <script src="../engine/defense.js"></script><script src="../engine/defense-runtime.js"></script>
+  <script src="../engine/renderers.js"></script><script src="../engine/presentation.js"></script>
+  <script src="../engine/party-actions.js"></script><script src="../engine/assets.js"></script>
+  <script src="../engine/input.js"></script><script src="../engine/runtime.js"></script>
+  <script src="../game.js"></script>
+  <script>
+    (() => {
+      const params = new URLSearchParams(location.search);
+      const fight = params.get("fight");
+      const turnNumber = Number(params.get("turn"));
+      const sequence = params.get("sequence") === "all";
+      const repeatAttack = params.get("repeat") === "twice";
+      const holdParam = params.get("hold");
+      const holdEnemyTimer = holdParam === null ? Number.NaN : Number(holdParam);
+      const expectedTurns = fight === "sable" ? 21 : fight === "zach" ? 25 : 17;
+      const game = window.SoulBattle.game;
+      const canvas = document.getElementById("game");
+      let introPick = 0;
+      let nextActionFrame = 2;
+      let configured = false;
+      let enteredEnemy = false;
+      let leftEnemy = false;
+      let completedEnemyTurns = 0;
+      let previousPhase = null;
+      let enemyDialogCount = 0;
+      let cloneMoved = false;
+      let dandelionDreamBoxMorphed = false;
+      const cloneOrigins = new Map();
+
+      const pointer = (x, y) => canvas.dispatchEvent(new PointerEvent("pointerdown", {
+        bubbles: true,
+        clientX: x,
+        clientY: y
+      }));
+      const key = (value, down) => window.dispatchEvent(new KeyboardEvent(down ? "keydown" : "keyup", {
+        key: value,
+        bubbles: true
+      }));
+      const tap = (value) => {
+        key(value, true);
+        key(value, false);
+      };
+
+      function finish() {
+        stopAnimationFrames = true;
+        if (controllerId !== null) clearInterval(controllerId);
+        document.body.dataset.fight = fight;
+        document.body.dataset.turn = sequence ? "all" : String(turnNumber);
+        document.body.dataset.phase = game.state.phase;
+        document.body.dataset.frame = String(game.state.frame);
+        document.body.dataset.cloneMoved = String(cloneMoved);
+        document.body.dataset.dandelionDreamBoxMorphed = String(dandelionDreamBoxMorphed);
+        document.body.dataset.enemyDialogCount = String(enemyDialogCount);
+        if (fight === "sable" && (sequence || turnNumber === 8) && !cloneMoved) {
+          fail("Sable clone hearts never followed the moving player soul");
+          return;
+        }
+        if (dandelionDreamBoxMorphed) {
+          fail("Dandelion attack 10 entered the spinning box-morph phase");
+          return;
+        }
+        document.body.dataset.smoke = "pass";
+      }
+
+      function control() {
+        if (document.body.dataset.smoke) return;
+        const state = game?.state;
+        if (!state) {
+          fail("Game state was not created");
+          return;
+        }
+
+        for (const player of state.party || []) {
+          player.maxHP = Math.max(player.maxHP, 1000000);
+          player.hp = player.maxHP;
+        }
+        state.playerHP = 1000000;
+        state.maxHP = 1000000;
+
+        if (state.phase === "enemyDialog" && previousPhase !== "enemyDialog") {
+          enemyDialogCount++;
+        }
+        previousPhase = state.phase;
+
+        if (
+          fight === "dandelion" &&
+          state.currentTurn?.index === 9 &&
+          state.phase === "boxMorph"
+        ) {
+          dandelionDreamBoxMorphed = true;
+        }
+
+        if (state.phase === "intro" && state.frame >= nextActionFrame && introPick < 3) {
+          pointer(160, [193, 257, 321][introPick]);
+          introPick++;
+          nextActionFrame = state.frame + 3;
+        } else if (state.phase === "menu") {
+          if (enteredEnemy) {
+            completedEnemyTurns++;
+            if ((!sequence && !repeatAttack) ||
+              (repeatAttack && completedEnemyTurns >= 2) ||
+              (sequence && state.seenTurns.size >= expectedTurns)) {
+              leftEnemy = true;
+              finish();
+              return;
+            }
+            enteredEnemy = false;
+            if (repeatAttack && !game.setUpcomingAttack(turnNumber)) {
+              fail(`Could not repeat ${fight} turn ${turnNumber}`);
+              return;
+            }
+            nextActionFrame = state.frame + 2;
+          }
+          if (!configured) {
+            if (!sequence && !game.setUpcomingAttack(turnNumber)) {
+              fail(`Could not select ${fight} turn ${turnNumber}`);
+              return;
+            }
+            configured = true;
+            nextActionFrame = state.frame + 2;
+          } else if (state.frame >= nextActionFrame) {
+            const actor = Math.max(0, state.partyTurnIndex);
+            const disabled = state.encounter?.sableDisabledCommands?.[actor];
+            const commandX = disabled === 3 ? 50 + actor * 301 : 254 + actor * 301;
+            pointer(commandX, 454);
+            nextActionFrame = state.frame + 4;
+          }
+        } else if ((state.phase === "fightTarget" || state.phase === "attack") && state.frame >= nextActionFrame) {
+          tap("Enter");
+          nextActionFrame = state.frame + 3;
+        } else if (state.phase === "fightQte" && state.frame >= nextActionFrame) {
+          tap("Enter");
+          nextActionFrame = state.frame + 12;
+        } else if (state.phase === "enemyDialog" && state.frame >= nextActionFrame) {
+          tap("Enter");
+          nextActionFrame = state.frame + 3;
+        } else if (
+          state.phase === "turnEvent" &&
+          state.turnEvent?.step?.type === "enemyDialog" &&
+          state.frame >= nextActionFrame
+        ) {
+          tap("Enter");
+          nextActionFrame = state.frame + 3;
+        }
+
+        if (state.phase === "enemy") {
+          enteredEnemy = true;
+          if (Number.isFinite(holdEnemyTimer) && holdEnemyTimer >= 0 && state.enemyTimer >= holdEnemyTimer) {
+            stopAnimationFrames = true;
+            clearInterval(controllerId);
+            document.body.dataset.hold = String(state.enemyTimer);
+            return;
+          }
+          const movementKey = Math.floor(state.enemyTimer / 45) % 4;
+          ["ArrowRight", "ArrowDown", "ArrowLeft", "ArrowUp"].forEach((value, index) => {
+            key(value, index === movementKey);
+          });
+          for (const bullet of state.bullets) {
+            if (bullet.type !== "glitchSoul") continue;
+            if (!cloneOrigins.has(bullet)) cloneOrigins.set(bullet, { x: bullet.x, y: bullet.y });
+            const origin = cloneOrigins.get(bullet);
+            if (Math.hypot(bullet.x - origin.x, bullet.y - origin.y) > 2) cloneMoved = true;
+          }
+        } else {
+          ["ArrowRight", "ArrowDown", "ArrowLeft", "ArrowUp"].forEach((value) => key(value, false));
+        }
+
+        const frameLimit = sequence ? 80000 : 18000;
+        if (state.frame > frameLimit || (configured && !sequence && state.frame > 15000 && !leftEnemy)) {
+          fail(`Timed out in phase ${state.phase} on ${fight} ${sequence ? "sequence" : `turn ${turnNumber}`}`);
+        }
+      }
+
+      controllerId = setInterval(control, 0);
+      window.addEventListener("beforeunload", () => clearInterval(controllerId));
+    })();
+  </script>
+</body>
+</html>

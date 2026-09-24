@@ -1,0 +1,59 @@
+<!doctype html>
+<html lang="en">
+<head><meta charset="UTF-8"><title>Sable smoke test</title></head>
+<body>
+  <canvas id="game" width="900" height="650"></canvas>
+  <script>window.addEventListener("error", (event) => {
+    document.body.dataset.smoke = "fail";
+    document.body.dataset.error = `${event.message} @ ${event.filename}:${event.lineno}`;
+  });</script>
+  <script>window.requestAnimationFrame = (callback) => setTimeout(() => callback(performance.now()), 16);</script>
+  <script src="../players/party.js"></script><script src="../engine/player-runtime.js"></script>
+  <script src="../players/carian.js"></script>
+  <script src="../players/bravouros.js"></script><script src="../players/thanos.js"></script>
+  <script src="../players/bucky.js"></script><script src="../players/tarhun.js"></script>
+  <script src="../engine/loader.js"></script><script src="../enemies/sable.js"></script>
+  <script src="../engine/constants.js"></script>
+  <script src="../engine/utils.js"></script><script src="../engine/flow.js"></script>
+  <script src="../engine/extensions.js"></script><script src="../engine/defense.js"></script>
+  <script src="../engine/defense-runtime.js"></script>
+  <script src="../engine/renderers.js"></script><script src="../engine/presentation.js"></script>
+  <script src="../engine/party-actions.js"></script>
+  <script src="../engine/assets.js"></script><script src="../engine/input.js"></script>
+  <script src="../engine/runtime.js"></script><script src="../game.js"></script>
+  <script>
+    let partyHoverPassed = false;
+    let partyFlagPassed = false;
+    const clickCanvas = (x, y) => {
+      document.getElementById("game").dispatchEvent(new PointerEvent("pointerdown", {
+        bubbles: true, clientX: x, clientY: y
+      }));
+    };
+    const moveCanvas = (x, y) => {
+      document.getElementById("game").dispatchEvent(new PointerEvent("pointermove", {
+        bubbles: true, clientX: x, clientY: y
+      }));
+    };
+    setTimeout(() => moveCanvas(160, 449), 20);
+    setTimeout(() => {
+      partyHoverPassed = window.SoulBattle.game?.state?.partySelection?.hovered === 4;
+    }, 80);
+    setTimeout(() => clickCanvas(160, 193), 100);
+    setTimeout(() => {
+      const selection = window.SoulBattle.game?.state?.partySelection;
+      partyFlagPassed = selection?.picks?.[0] === 0 && Number.isFinite(selection?.pickFrames?.[0]);
+    }, 220);
+    setTimeout(() => clickCanvas(160, 257), 300);
+    setTimeout(() => clickCanvas(160, 321), 500);
+    setTimeout(() => {
+      if (!document.body.dataset.smoke) {
+        document.body.dataset.phase = window.SoulBattle.game?.state?.phase || "missing";
+        document.body.dataset.frame = window.SoulBattle.game?.state?.frame ?? "missing";
+        document.body.dataset.smoke = window.SoulBattle.game?.state?.phase === "menu"
+          && partyHoverPassed && partyFlagPassed
+          ? "pass" : "fail";
+      }
+    }, 1100);
+  </script>
+</body>
+</html>

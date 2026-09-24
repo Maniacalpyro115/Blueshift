@@ -1,0 +1,117 @@
+<!doctype html>
+<html lang="en">
+<head><meta charset="UTF-8"><base href="../"><title>Dandelion defeat sequence smoke test</title></head>
+<body>
+  <canvas id="game" width="900" height="650"></canvas>
+  <script>
+    const playedSounds = [];
+    let rafTimestamp = 0;
+    const smokeParams = new URLSearchParams(location.search);
+    const holdDefeatFrame = Number(smokeParams.get("hold"));
+    const defeatTriggerDelay = Number(smokeParams.get("delay")) || 55;
+    window.requestAnimationFrame = (callback) => setTimeout(() => {
+      const state = window.SoulBattle?.game?.state;
+      if (
+        Number.isFinite(holdDefeatFrame) &&
+        holdDefeatFrame > 0 &&
+        state?.phase === "defeatDissolve" &&
+        state.defeatDissolve.timer >= holdDefeatFrame
+      ) return;
+      rafTimestamp += 1000 / 60;
+      callback(rafTimestamp);
+    }, 1);
+    HTMLMediaElement.prototype.play = function play() {
+      playedSounds.push(this.src);
+      return Promise.resolve();
+    };
+    window.addEventListener("error", (event) => {
+      document.body.dataset.smoke = "fail";
+      document.body.dataset.error = `${event.message} @ ${event.filename}:${event.lineno}`;
+    });
+  </script>
+  <script src="players/party.js"></script><script src="engine/player-runtime.js"></script>
+  <script src="players/carian.js"></script><script src="players/bravouros.js"></script>
+  <script src="players/thanos.js"></script><script src="players/bucky.js"></script>
+  <script src="players/tarhun.js"></script><script src="engine/loader.js"></script>
+  <script src="enemies/dandelion.js"></script><script src="engine/constants.js"></script>
+  <script src="engine/utils.js"></script><script src="engine/flow.js"></script>
+  <script src="engine/extensions.js"></script><script src="engine/defense.js"></script>
+  <script src="engine/defense-runtime.js"></script><script src="engine/renderers.js"></script>
+  <script src="engine/presentation.js"></script><script src="engine/party-actions.js"></script>
+  <script src="engine/assets.js"></script><script src="engine/input.js"></script>
+  <script src="engine/runtime.js"></script><script src="game.js"></script>
+  <script>
+    const expectedLines = [
+      "Wow! Y'all are stronger than I recall.",
+      "But it'll take more than that to beat me!",
+      "Wait",
+      "Do you hear something?",
+      "SABLE!"
+    ];
+    const seenLines = [];
+    let sawImpact = false;
+    let sawParticles = false;
+    let sawGlitch = false;
+
+    const clickCanvas = (x, y) => document.getElementById("game").dispatchEvent(
+      new PointerEvent("pointerdown", { bubbles: true, clientX: x, clientY: y })
+    );
+    setTimeout(() => clickCanvas(160, 193), 10);
+    setTimeout(() => clickCanvas(160, 257), 20);
+    setTimeout(() => clickCanvas(160, 321), 30);
+    setTimeout(() => {
+      const state = window.SoulBattle.game.state;
+      state.enemyHP = 1;
+      state.damageResult.timer = 0;
+      state.damageResult.duration = 1;
+      state.damageResult.fromHP = 1;
+      state.damageResult.toHP = 0;
+      state.damageResult.damage = 1;
+      state.phase = "damageResult";
+    }, defeatTriggerDelay);
+
+    const controller = setInterval(() => {
+      const state = window.SoulBattle.game?.state;
+      if (!state) return;
+      if (state.enemyDialogMessage && seenLines.at(-1) !== state.enemyDialogMessage) {
+        seenLines.push(state.enemyDialogMessage);
+      }
+      const ending = state.encounter.dandelionGenocideEnding;
+      if (state.phase === "defeatDissolve" && state.defeatDissolve.timer >= 690) {
+        sawImpact ||= !!ending?.impactTriggered;
+      }
+      sawParticles ||= (ending?.particles?.length || 0) > 0;
+      sawGlitch ||= !!ending?.glitchSoundPlayed;
+
+      if (state.phase !== "win") return;
+      clearInterval(controller);
+      const passed = JSON.stringify(seenLines) === JSON.stringify(expectedLines)
+        && sawImpact
+        && sawParticles
+        && sawGlitch
+        && playedSounds.some((src) => src.endsWith("/sounds/snd_fall.wav"))
+        && playedSounds.some((src) => src.endsWith("/sounds/snd_glitch_1.mp3"))
+        && state.message === "* DANDELION has been defeated.";
+      document.body.dataset.lines = seenLines.join("|");
+      document.body.dataset.glitchSound = String(
+        playedSounds.some((src) => src.endsWith("/sounds/snd_glitch_1.mp3"))
+      );
+      document.body.dataset.fallSound = String(
+        playedSounds.some((src) => src.endsWith("/sounds/snd_fall.wav"))
+      );
+      document.body.dataset.smoke = passed ? "pass" : "fail";
+    }, 1);
+
+    setTimeout(() => {
+      if (document.body.dataset.smoke) return;
+      clearInterval(controller);
+      document.body.dataset.smoke = "fail";
+      document.body.dataset.error = "defeat sequence timeout";
+      document.body.dataset.phase = window.SoulBattle.game?.state?.phase || "missing";
+      document.body.dataset.defeatTimer = String(
+        window.SoulBattle.game?.state?.defeatDissolve?.timer ?? "missing"
+      );
+    }, 5000);
+  </script>
+</body>
+</html>

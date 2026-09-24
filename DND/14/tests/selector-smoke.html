@@ -1,0 +1,112 @@
+<!doctype html>
+<html lang="en">
+<head><meta charset="UTF-8"><title>Encounter selector smoke test</title></head>
+<body>
+  <canvas id="game" width="900" height="650"></canvas>
+  <script>window.addEventListener("error", () => { document.body.dataset.smoke = "fail"; });</script>
+  <script src="../players/party.js"></script><script src="../engine/player-runtime.js"></script>
+  <script src="../players/carian.js"></script>
+  <script src="../players/bravouros.js"></script><script src="../players/thanos.js"></script>
+  <script src="../players/bucky.js"></script><script src="../players/tarhun.js"></script>
+  <script src="../engine/loader.js"></script><script src="../enemies/sable.js"></script>
+  <script src="../enemies/zach.js"></script><script src="../enemies/dandelion.js"></script>
+  <script src="../engine/constants.js"></script>
+  <script src="../engine/utils.js"></script><script src="../engine/flow.js"></script>
+  <script src="../engine/extensions.js"></script><script src="../engine/defense.js"></script>
+  <script src="../engine/defense-runtime.js"></script><script src="../engine/renderers.js"></script>
+  <script src="../engine/presentation.js"></script>
+  <script src="../engine/party-actions.js"></script>
+  <script src="../engine/assets.js"></script><script src="../engine/input.js"></script>
+  <script src="../engine/runtime.js"></script>
+  <script>
+    const requestedFight = new URLSearchParams(location.search).get("fight");
+    if (!requestedFight) {
+      sessionStorage.removeItem("selectorSoundPlays");
+      sessionStorage.removeItem("selectorStagePassed");
+    }
+    window.__menuMovePlays = Number(sessionStorage.getItem("selectorSoundPlays")) || 0;
+    HTMLMediaElement.prototype.play = function () {
+      if (this.src.includes("snd_select.wav")) {
+        window.__menuMovePlays++;
+        sessionStorage.setItem("selectorSoundPlays", String(window.__menuMovePlays));
+      }
+      return Promise.resolve();
+    };
+  </script>
+  <script src="../game.js"></script>
+  <script>
+    setTimeout(() => {
+      const ids = window.SoulBattle.encounters.list().map((entry) => entry.id).join(",");
+      if (requestedFight === "dandelion") {
+        document.body.dataset.mode = window.SoulBattle.game?.enemy?.name || "missing";
+        document.body.dataset.encounters = ids;
+        document.body.dataset.smoke = window.SoulBattle.game?.enemy?.name === "DANDELION"
+          && sessionStorage.getItem("selectorStagePassed") === "true"
+          && window.__menuMovePlays === 8
+          ? "pass" : "fail";
+        return;
+      }
+
+      const flags = window.SoulBattle.encounters.list()
+        .map((entry) => `${entry.id}:${entry.isNew}`)
+        .join(",");
+      window.dispatchEvent(new KeyboardEvent("keydown", { key: "ArrowLeft" }));
+      const leftEndDidNotLoop = window.SoulBattle.game?.focusedCard === "zach"
+        && window.__menuMovePlays === 0;
+      window.dispatchEvent(new KeyboardEvent("keydown", { key: "ArrowRight" }));
+      document.getElementById("game").dispatchEvent(new PointerEvent("pointerdown", {
+        clientX: 540,
+        clientY: 300,
+        bubbles: true
+      }));
+      document.getElementById("game").dispatchEvent(new PointerEvent("pointerdown", {
+        clientX: 844,
+        clientY: 343,
+        bubbles: true
+      }));
+      document.getElementById("game").dispatchEvent(new PointerEvent("pointermove", {
+        clientX: 700,
+        clientY: 300,
+        bubbles: true
+      }));
+      document.getElementById("game").dispatchEvent(new PointerEvent("pointerdown", {
+        clientX: 700,
+        clientY: 300,
+        bubbles: true
+      }));
+      window.dispatchEvent(new KeyboardEvent("keydown", { key: "ArrowRight" }));
+      window.dispatchEvent(new KeyboardEvent("keydown", { key: "ArrowRight" }));
+      window.dispatchEvent(new KeyboardEvent("keydown", { key: "ArrowRight" }));
+      const rightEndDidNotLoop = window.SoulBattle.game?.focusedCard === "coming-soon-2"
+        && window.__menuMovePlays === 5;
+      window.dispatchEvent(new KeyboardEvent("keydown", { key: "ArrowLeft" }));
+      window.dispatchEvent(new KeyboardEvent("keydown", { key: "ArrowLeft" }));
+      document.body.dataset.mode = window.SoulBattle.game?.mode || "missing";
+      document.body.dataset.encounters = ids;
+      const selectorPassed = window.SoulBattle.game?.mode === "encounterSelect"
+        && window.SoulBattle.game?.selectedEncounter === "dandelion"
+        && window.SoulBattle.game?.focusedCard === "dandelion"
+        && window.SoulBattle.game?.hoveredCard === "coming-soon-2"
+        && window.SoulBattle.game?.carouselStart === 1
+        && window.SoulBattle.game?.visibleCards.join(",") === "sable,dandelion,coming-soon-1,coming-soon-2"
+        && window.SoulBattle.game?.cardCount === 5
+        && window.__menuMovePlays === 7
+        && leftEndDidNotLoop
+        && rightEndDidNotLoop
+        && ids === "sable,zach,dandelion"
+        && flags === "sable:false,zach:false,dandelion:true";
+      if (!selectorPassed) {
+        document.body.dataset.smoke = "fail";
+        return;
+      }
+
+      sessionStorage.setItem("selectorStagePassed", "true");
+      document.getElementById("game").dispatchEvent(new PointerEvent("pointerdown", {
+        clientX: 350,
+        clientY: 300,
+        bubbles: true
+      }));
+    }, 100);
+  </script>
+</body>
+</html>

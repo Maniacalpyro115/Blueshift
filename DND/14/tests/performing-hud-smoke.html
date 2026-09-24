@@ -1,0 +1,75 @@
+<!doctype html>
+<html lang="en">
+<head><meta charset="UTF-8"><title>Performing HUD smoke test</title></head>
+<body>
+  <canvas id="game" width="900" height="650"></canvas>
+  <script>window.addEventListener("error", (event) => {
+    document.body.dataset.smoke = "fail";
+    document.body.dataset.error = `${event.message} @ ${event.filename}:${event.lineno}`;
+  });</script>
+  <script>window.requestAnimationFrame = (callback) => setTimeout(() => callback(performance.now()), 16);</script>
+  <script src="../players/party.js"></script><script src="../engine/player-runtime.js"></script>
+  <script src="../players/carian.js"></script><script src="../players/bravouros.js"></script>
+  <script src="../players/thanos.js"></script><script src="../players/bucky.js"></script>
+  <script src="../players/tarhun.js"></script><script src="../engine/loader.js"></script>
+  <script src="../enemies/dandelion.js"></script><script src="../engine/constants.js"></script>
+  <script src="../engine/utils.js"></script><script src="../engine/flow.js"></script>
+  <script src="../engine/extensions.js"></script><script src="../engine/defense.js"></script>
+  <script src="../engine/defense-runtime.js"></script><script src="../engine/renderers.js"></script>
+  <script src="../engine/presentation.js"></script><script src="../engine/party-actions.js"></script>
+  <script src="../engine/assets.js"></script><script src="../engine/input.js"></script>
+  <script src="../engine/runtime.js"></script><script src="../game.js"></script>
+  <script>
+    const canvas = document.getElementById("game");
+    const clickCanvas = (x, y) => {
+      canvas.dispatchEvent(new PointerEvent("pointerdown", {
+        bubbles: true, clientX: x, clientY: y
+      }));
+    };
+
+    const pinkPixelCount = (context, x, width) => {
+      const pixels = context.getImageData(x, 444, width, 44).data;
+      let count = 0;
+
+      for (let index = 0; index < pixels.length; index += 4) {
+        const red = pixels[index];
+        const green = pixels[index + 1];
+        const blue = pixels[index + 2];
+        const alpha = pixels[index + 3];
+        if (alpha > 0 && red > 220 && green > 35 && green < 210 && blue > 145) count++;
+      }
+
+      return count;
+    };
+
+    setTimeout(() => clickCanvas(160, 193), 100);
+    setTimeout(() => clickCanvas(160, 257), 300);
+    setTimeout(() => clickCanvas(160, 321), 500);
+    setTimeout(() => {
+      const state = window.SoulBattle.game?.state;
+      if (!state || state.party.length !== 3) {
+        document.body.dataset.smoke = "fail";
+        document.body.dataset.error = "party unavailable";
+        return;
+      }
+
+      state.party[0].dandelionPerforming = true;
+      state.party[1].dandelionPerforming = true;
+    }, 850);
+    setTimeout(() => {
+      if (document.body.dataset.smoke) return;
+
+      const context = canvas.getContext("2d");
+      const counts = [
+        pinkPixelCount(context, 0, 299),
+        pinkPixelCount(context, 301, 298),
+        pinkPixelCount(context, 601, 299)
+      ];
+      document.body.dataset.noteCounts = counts.join(",");
+      document.body.dataset.smoke = counts[0] > 10 && counts[1] > 10 && counts[2] === 0
+        ? "pass"
+        : "fail";
+    }, 1200);
+  </script>
+</body>
+</html>
