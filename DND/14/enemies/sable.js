@@ -1941,6 +1941,7 @@ const sableDefinition = {
   name: "SABLE",
   isNew: false,
   selectorOrder: 1,
+  selectablePlayers: ["CARIAN", "BRAVOURÖS", "THANOS", "BUCKY", "TARHUN"],
   runtime: createSableRuntime,
   background: {
     pattern: "slantedLines"

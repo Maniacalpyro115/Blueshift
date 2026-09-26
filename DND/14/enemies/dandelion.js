@@ -3743,7 +3743,8 @@ function orderedDandelionTurns(turns) {
 const dandelionDefinition = {
   name: "DANDELION",
   isNew: true,
-  selectorOrder: 2,
+  selectorOrder: 0,
+  selectablePlayers: ["CARIAN", "BRAVOURÖS", "THANOS", "BUCKY", "TARHUN"],
   runtime: createDandelionRuntime,
   background: {
     pattern: "confetti",

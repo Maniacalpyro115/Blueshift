@@ -37,10 +37,10 @@
   <script>
     setTimeout(() => {
       const ids = window.SoulBattle.encounters.list().map((entry) => entry.id).join(",");
-      if (requestedFight === "dandelion") {
+      if (requestedFight === "zach") {
         document.body.dataset.mode = window.SoulBattle.game?.enemy?.name || "missing";
         document.body.dataset.encounters = ids;
-        document.body.dataset.smoke = window.SoulBattle.game?.enemy?.name === "DANDELION"
+        document.body.dataset.smoke = window.SoulBattle.game?.enemy?.name === "ZACH"
           && sessionStorage.getItem("selectorStagePassed") === "true"
           && window.__menuMovePlays === 8
           ? "pass" : "fail";
@@ -51,7 +51,7 @@
         .map((entry) => `${entry.id}:${entry.isNew}`)
         .join(",");
       window.dispatchEvent(new KeyboardEvent("keydown", { key: "ArrowLeft" }));
-      const leftEndDidNotLoop = window.SoulBattle.game?.focusedCard === "zach"
+      const leftEndDidNotLoop = window.SoulBattle.game?.focusedCard === "dandelion"
         && window.__menuMovePlays === 0;
       window.dispatchEvent(new KeyboardEvent("keydown", { key: "ArrowRight" }));
       document.getElementById("game").dispatchEvent(new PointerEvent("pointerdown", {
@@ -84,11 +84,11 @@
       document.body.dataset.mode = window.SoulBattle.game?.mode || "missing";
       document.body.dataset.encounters = ids;
       const selectorPassed = window.SoulBattle.game?.mode === "encounterSelect"
-        && window.SoulBattle.game?.selectedEncounter === "dandelion"
-        && window.SoulBattle.game?.focusedCard === "dandelion"
+        && window.SoulBattle.game?.selectedEncounter === "zach"
+        && window.SoulBattle.game?.focusedCard === "zach"
         && window.SoulBattle.game?.hoveredCard === "coming-soon-2"
         && window.SoulBattle.game?.carouselStart === 1
-        && window.SoulBattle.game?.visibleCards.join(",") === "sable,dandelion,coming-soon-1,coming-soon-2"
+        && window.SoulBattle.game?.visibleCards.join(",") === "sable,zach,coming-soon-1,coming-soon-2"
         && window.SoulBattle.game?.cardCount === 5
         && window.__menuMovePlays === 7
         && leftEndDidNotLoop

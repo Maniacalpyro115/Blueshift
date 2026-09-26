@@ -31,11 +31,20 @@
   <script src="../engine/runtime.js"></script>
   <script src="../game.js"></script>
   <script>
+    let tarhunExcluded = false;
     const clickCanvas = (x, y) => {
       document.getElementById("game").dispatchEvent(new PointerEvent("pointerdown", {
         bubbles: true, clientX: x, clientY: y
       }));
     };
+    setTimeout(() => {
+      document.getElementById("game").dispatchEvent(new PointerEvent("pointermove", {
+        bubbles: true, clientX: 160, clientY: 449
+      }));
+    }, 20);
+    setTimeout(() => {
+      tarhunExcluded = window.SoulBattle.game?.state?.partySelection?.hovered === -1;
+    }, 80);
     setTimeout(() => clickCanvas(160, 193), 100);
     setTimeout(() => clickCanvas(160, 257), 300);
     setTimeout(() => clickCanvas(160, 321), 500);
@@ -43,7 +52,8 @@
       if (!document.body.dataset.smoke) {
         document.body.dataset.phase = window.SoulBattle.game?.state?.phase || "missing";
         document.body.dataset.frame = window.SoulBattle.game?.state?.frame ?? "missing";
-        document.body.dataset.smoke = window.SoulBattle.game?.state?.phase === "menu" ? "pass" : "fail";
+        document.body.dataset.smoke = window.SoulBattle.game?.state?.phase === "menu" && tarhunExcluded
+          ? "pass" : "fail";
       }
     }, 1100);
   </script>

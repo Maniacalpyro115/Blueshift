@@ -1580,7 +1580,8 @@ function createZachRuntime(api) {
 const zachDefinition = {
   name: "ZACH",
   isNew: false,
-  selectorOrder: 0,
+  selectorOrder: 2,
+  selectablePlayers: ["CARIAN", "BRAVOURÖS", "THANOS", "BUCKY"],
   runtime: createZachRuntime,
   background: {
     pattern: "slantedLines"

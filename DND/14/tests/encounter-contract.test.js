@@ -104,6 +104,19 @@ for (const name of Object.keys(expected)) {
   assert.deepStrictEqual(JSON.parse(JSON.stringify(enemy.turns.map(signature))), expected[name]);
 }
 
+const expectedSelectablePlayers = {
+  zach: ["CARIAN", "BRAVOURÖS", "THANOS", "BUCKY"],
+  sable: ["CARIAN", "BRAVOURÖS", "THANOS", "BUCKY", "TARHUN"],
+  dandelion: ["CARIAN", "BRAVOURÖS", "THANOS", "BUCKY", "TARHUN"]
+};
+for (const [name, players] of Object.entries(expectedSelectablePlayers)) {
+  assert.deepStrictEqual(
+    JSON.parse(JSON.stringify(loadEnemy(name).selectablePlayers)),
+    players,
+    `${name} selectable player roster changed`
+  );
+}
+
 const dandelion = loadEnemy("dandelion");
 assert.strictEqual(loadEnemy("sable").background.pattern, "slantedLines");
 assert.strictEqual(loadEnemy("zach").background.pattern, "slantedLines");

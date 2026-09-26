@@ -12,7 +12,8 @@
       getActMenuLayout,
       getAttackMeterBounds, getCommandOptionRect, getItemMenuLayout,
       getItemTargetLayout, getPartyCommandCardRect, getPurpleLineYs,
-      greenShieldRect, partySelectionCardRect, partySelectionBackRect, getEncounterRuntime
+      greenShieldRect, partySelectionCardRect, partySelectionBackRect, selectablePlayers,
+      getEncounterRuntime
     } = api;
     const encounterRuntime = new Proxy({}, {
       get(_target, key) { return getEncounterRuntime()?.[key]; }
@@ -2602,7 +2603,7 @@
   }
 
   function drawPartySelectionOverlay() {
-    const roster = Array.isArray(window.PLAYER_DATA) ? window.PLAYER_DATA : [];
+    const roster = selectablePlayers;
     const picks = state.partySelection.picks;
     const hoveredIndex = state.partySelection.hovered;
     const previewIndex = hoveredIndex >= 0 ? hoveredIndex : state.partySelection.cursor;

@@ -50,6 +50,22 @@ window.SoulBattle.createGame = function createGame(options) {
     ...(options.enemy || window.ENEMY_DATA || {})
   };
 
+  const registeredPlayers = Array.isArray(window.PLAYER_DATA) ? window.PLAYER_DATA : [];
+  const configuredPlayerNames = Array.isArray(enemyData.selectablePlayers)
+    ? enemyData.selectablePlayers
+    : registeredPlayers.map((player) => player.name);
+  const selectablePlayers = configuredPlayerNames.map((name) =>
+    registeredPlayers.find((player) => player?.name === name)
+  );
+  const missingPlayerName = configuredPlayerNames.find((_name, index) => !selectablePlayers[index]);
+
+  if (missingPlayerName) {
+    throw new Error(`${enemyData.name} references an unregistered selectable player: ${missingPlayerName}`);
+  }
+  if (selectablePlayers.length < 3) {
+    throw new Error(`${enemyData.name} must declare at least three selectable players.`);
+  }
+
   const { sprites, sounds } = createAssets(enemyData);
 
   function stopCurrentMusic() {
@@ -286,7 +302,7 @@ window.SoulBattle.createGame = function createGame(options) {
     enemyMaxHP: enemyData.maxHP,
     enemyName: enemyData.name,
 
-    party: createParty(window.PLAYER_DATA),
+    party: createParty(selectablePlayers),
     partySelection: {
       cursor: 0,
       hovered: -1,
@@ -495,6 +511,7 @@ window.SoulBattle.createGame = function createGame(options) {
     getAttackMeterBounds, getCommandOptionRect, getItemMenuLayout,
     getItemTargetLayout, getPartyCommandCardRect, getPurpleLineYs,
     greenShieldRect, partySelectionCardRect, partySelectionBackRect,
+    selectablePlayers,
     getEncounterRuntime: () => encounterRuntime
   });
   const {
@@ -1872,7 +1889,7 @@ window.SoulBattle.createGame = function createGame(options) {
   }
 
   function partySelectionHit(x, y) {
-    const roster = Array.isArray(window.PLAYER_DATA) ? window.PLAYER_DATA : [];
+    const roster = selectablePlayers;
 
     for (let i = 0; i < roster.length; i++) {
       const card = partySelectionCardRect(i);
@@ -1883,7 +1900,7 @@ window.SoulBattle.createGame = function createGame(options) {
   }
 
   function movePartySelectionCursor(direction) {
-    const roster = Array.isArray(window.PLAYER_DATA) ? window.PLAYER_DATA : [];
+    const roster = selectablePlayers;
     if (roster.length === 0) return;
 
     let next = state.partySelection.cursor;
@@ -1899,7 +1916,7 @@ window.SoulBattle.createGame = function createGame(options) {
   }
 
   function choosePartySelection(index) {
-    const roster = Array.isArray(window.PLAYER_DATA) ? window.PLAYER_DATA : [];
+    const roster = selectablePlayers;
     if (!roster[index] || state.partySelection.picks.includes(index)) return;
 
     state.partySelection.cursor = index;
@@ -1916,7 +1933,7 @@ window.SoulBattle.createGame = function createGame(options) {
   }
 
   function finishPartySelection() {
-    const roster = Array.isArray(window.PLAYER_DATA) ? window.PLAYER_DATA : [];
+    const roster = selectablePlayers;
     const selectedPlayers = state.partySelection.picks.map((rosterIndex) => roster[rosterIndex]);
     if (selectedPlayers.length !== 3 || selectedPlayers.some((player) => !player)) return;
     savePartySelection(selectedPlayers);
@@ -2003,7 +2020,7 @@ window.SoulBattle.createGame = function createGame(options) {
   }
 
   function restartWithPreviousParty() {
-    const roster = Array.isArray(window.PLAYER_DATA) ? window.PLAYER_DATA : [];
+    const roster = selectablePlayers;
     const names = loadPartySelection();
     const selectedPlayers = names.map((name) => roster.find((player) => player.name === name)).filter(Boolean);
 
@@ -2566,7 +2583,7 @@ window.SoulBattle.createGame = function createGame(options) {
     state.partySelection.picks = [];
     state.partySelection.pickFrames = {};
     state.partySelection.completeFrame = null;
-    state.party = createParty(window.PLAYER_DATA);
+    state.party = createParty(selectablePlayers);
     syncLegacyPlayerHP();
     state.tp = 0;
     state.grazeGlow = 0;
