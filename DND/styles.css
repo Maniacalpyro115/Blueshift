@@ -41,6 +41,19 @@ canvas {
   display: none;
 }
 
+html.mobile-input-enabled,
+html.mobile-input-enabled body,
+html.mobile-input-enabled #game-shell,
+html.mobile-input-enabled canvas,
+html.mobile-input-enabled #mobile-controls,
+html.mobile-input-enabled #mobile-rotate-prompt {
+  touch-action: none;
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-touch-callout: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
 @media (hover: none) and (pointer: coarse) and (orientation: landscape) {
   html.mobile-input-enabled {
     --mobile-control-zone: clamp(92px, 14vw, 150px);

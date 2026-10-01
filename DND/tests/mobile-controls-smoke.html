@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
   <title>Mobile controls smoke test</title>
   <link rel="stylesheet" href="../styles.css">
 </head>
@@ -28,6 +28,20 @@
       const joystick = document.getElementById("mobile-joystick");
       const input = window.SoulBattle.input.createInput({ canvas, width: 900, height: 650 });
       const desktopHidden = getComputedStyle(controls).display === "none";
+
+      const desktopSelection = new Event("selectstart", { bubbles: true, cancelable: true });
+      document.dispatchEvent(desktopSelection);
+      const desktopSelectionAllowed = !desktopSelection.defaultPrevented;
+
+      document.documentElement.classList.add("mobile-input-enabled");
+      const suppressedEvents = ["touchstart", "touchmove", "dblclick", "selectstart", "dragstart", "gesturestart"]
+        .every((eventName) => {
+          const event = new Event(eventName, { bubbles: true, cancelable: true });
+          document.dispatchEvent(event);
+          return event.defaultPrevented;
+        });
+      const mobileTouchActionDisabled = getComputedStyle(document.body).touchAction === "none"
+        && getComputedStyle(canvas).touchAction === "none";
 
       controls.style.display = "block";
       joystick.style.position = "fixed";
@@ -79,7 +93,9 @@
       document.body.dataset.aPressed = String(aPressed);
       document.body.dataset.bPressed = String(bPressed);
       document.body.dataset.diagonal = String(downRight && upLeft);
+      document.body.dataset.gesturesSuppressed = String(suppressedEvents && mobileTouchActionDisabled);
       document.body.dataset.smoke = desktopHidden && aPressed && aDoesNotRepeat && aReleased
+        && desktopSelectionAllowed && suppressedEvents && mobileTouchActionDisabled
         && bPressed && downRight && upLeft && joystickReleased && blurReleased
         ? "pass"
         : "fail";

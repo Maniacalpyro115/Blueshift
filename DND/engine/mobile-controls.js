@@ -13,6 +13,14 @@
   let joystickPointer = null;
   let joystickKeys = new Set();
 
+  function mobileModeEnabled() {
+    return document.documentElement.classList.contains("mobile-input-enabled");
+  }
+
+  function suppressBrowserGesture(event) {
+    if (mobileModeEnabled()) event.preventDefault();
+  }
+
   function dispatchVirtualKey(type, key) {
     window.dispatchEvent(new CustomEvent(type, {
       detail: { key, source: "mobile-controls" }
@@ -153,6 +161,9 @@
   document.getElementById("mobile-controls")?.addEventListener("contextmenu", (event) => {
     event.preventDefault();
   });
+  for (const eventName of ["touchstart", "touchmove", "dblclick", "selectstart", "dragstart", "gesturestart"]) {
+    document.addEventListener(eventName, suppressBrowserGesture, { capture: true, passive: false });
+  }
   coarsePointer.addEventListener?.("change", updateMobileMode);
   window.addEventListener("blur", releaseAllControls);
   document.addEventListener("visibilitychange", () => {
