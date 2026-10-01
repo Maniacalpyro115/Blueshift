@@ -3,6 +3,10 @@
 
   window.SoulBattle = window.SoulBattle || {};
 
+  let musicContext = null;
+  const soundBufferCache = new Map();
+  let audioUnlocked = false;
+
   function loadImage(src) {
     const img = new Image();
     img.src = src;
@@ -16,33 +20,119 @@
     const audio = new Audio(src);
     audio.preload = "auto";
     audio.volume = 0.3;
+    audio._soulBattleSrc = src;
+    preloadSound(audio);
     return audio;
+  }
+
+  function soundSource(sound) {
+    if (!sound) return "";
+    const src = sound._soulBattleSrc || sound.currentSrc || sound.src;
+    if (typeof src !== "string" || !src) return "";
+    try {
+      return new URL(src, document.baseURI).href;
+    } catch (_error) {
+      return src;
+    }
+  }
+
+  function preloadSound(sound) {
+    const context = getMusicContext();
+    const src = soundSource(sound);
+    if (!context || !src || typeof fetch !== "function") return Promise.resolve(null);
+
+    let entry = soundBufferCache.get(src);
+    if (!entry) {
+      entry = { buffer: null, loading: null };
+      entry.loading = fetch(src)
+        .then((response) => {
+          if (!response.ok) throw new Error(`Failed to load sound: ${response.status} ${src}`);
+          return response.arrayBuffer();
+        })
+        .then((audioData) => context.decodeAudioData(audioData))
+        .then((buffer) => {
+          entry.buffer = buffer;
+          return buffer;
+        })
+        .catch(() => null);
+      soundBufferCache.set(src, entry);
+    }
+
+    sound._soulBattleBufferEntry = entry;
+    return entry.loading;
+  }
+
+  function startBufferedSound(context, buffer, volume) {
+    const source = context.createBufferSource();
+    const gain = context.createGain();
+    source.buffer = buffer;
+    gain.gain.value = volume;
+    source.connect(gain);
+    gain.connect(context.destination);
+    source.start(0);
+  }
+
+  function playHtmlSound(sound, volumeScale) {
+    const useClone = volumeScale !== 1 || sound.paused === false;
+    const voice = useClone && typeof sound.cloneNode === "function"
+      ? sound.cloneNode(true)
+      : sound;
+    voice.volume = Math.max(0, Math.min(1, sound.volume * volumeScale));
+    voice.currentTime = 0;
+    const playResult = voice.play();
+    playResult?.catch?.(() => {
+      // Web Audio will take over once the browser has accepted the first gesture.
+    });
+  }
+
+  function unlockAudio() {
+    const context = getMusicContext();
+    if (!context) return Promise.resolve(false);
+
+    const resume = context.state !== "running" ? context.resume() : Promise.resolve();
+    return Promise.resolve(resume)
+      .then(() => {
+        if (context.state !== "running") return false;
+        if (!audioUnlocked) {
+          const silentBuffer = context.createBuffer(1, 1, context.sampleRate || 44100);
+          const silentSource = context.createBufferSource();
+          silentSource.buffer = silentBuffer;
+          silentSource.connect(context.destination);
+          silentSource.start(0);
+          audioUnlocked = true;
+        }
+        return true;
+      })
+      .catch(() => false);
   }
 
   function playSound(sound, volumeScale = 1) {
     if (!sound) return;
 
-    if (
-      Number.isFinite(volumeScale) &&
-      volumeScale !== 1 &&
-      typeof sound.cloneNode === "function"
-    ) {
-      const scaledSound = sound.cloneNode(true);
-      scaledSound.volume = Math.max(0, Math.min(1, sound.volume * volumeScale));
-      scaledSound.currentTime = 0;
-      scaledSound.play().catch(() => {
-        // Browser may block sound until the player has interacted with the page.
-      });
+    const scale = Number.isFinite(volumeScale) ? Math.max(0, volumeScale) : 1;
+    const volume = Math.max(0, Math.min(1, sound.volume * scale));
+    const context = getMusicContext();
+    const src = soundSource(sound);
+    const entry = sound._soulBattleBufferEntry || soundBufferCache.get(src);
+    window.dispatchEvent(new CustomEvent("soulbattle:sound-played", {
+      detail: { src, volume }
+    }));
+
+    if (context && entry?.buffer) {
+      if (context.state === "running") {
+        startBufferedSound(context, entry.buffer, volume);
+      } else {
+        unlockAudio().then((unlocked) => {
+          if (unlocked) startBufferedSound(context, entry.buffer, volume);
+          else playHtmlSound(sound, scale);
+        });
+      }
       return;
     }
 
-    sound.currentTime = 0;
-    sound.play().catch(() => {
-      // Browser may block sound until the player has interacted with the page.
-    });
+    preloadSound(sound);
+    playHtmlSound(sound, scale);
   }
-
-  let musicContext = null;
 
   function getMusicContext() {
     if (!musicContext) {
@@ -53,6 +143,13 @@
 
     return musicContext;
   }
+
+  for (const eventName of ["pointerdown", "touchstart", "keydown"]) {
+    document.addEventListener(eventName, unlockAudio, { capture: true, passive: true });
+  }
+  document.addEventListener("visibilitychange", () => {
+    if (!document.hidden && audioUnlocked) unlockAudio();
+  });
 
   function createMusicTrack(config, fallbackSrc) {
     const data = config && typeof config === "object"
@@ -367,6 +464,8 @@
 
   window.SoulBattle.assets = {
     loadSound,
+    preloadSound,
+    unlockAudio,
     createAssets,
     playSound,
     playMusic,

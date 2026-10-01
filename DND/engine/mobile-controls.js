@@ -11,6 +11,7 @@
   const joystick = document.getElementById("mobile-joystick");
   const joystickKnob = document.getElementById("mobile-joystick-knob");
   let joystickPointer = null;
+  let joystickTouchIdentifier = null;
   let joystickKeys = new Set();
 
   function mobileModeEnabled() {
@@ -82,6 +83,7 @@
 
   function resetJoystick() {
     joystickPointer = null;
+    joystickTouchIdentifier = null;
     setJoystickKeys(new Set());
     if (joystickKnob) joystickKnob.style.transform = "translate(-50%, -50%)";
   }
@@ -148,6 +150,11 @@
       event.preventDefault();
       updateJoystick(event);
     });
+    joystick.addEventListener("touchstart", (event) => {
+      if (joystickTouchIdentifier !== null) return;
+      const touch = event.changedTouches?.[0];
+      if (touch) joystickTouchIdentifier = touch.identifier;
+    }, { passive: false });
     const releaseJoystick = (event) => {
       if (event.pointerId !== joystickPointer) return;
       event.preventDefault();
@@ -158,14 +165,40 @@
     joystick.addEventListener("lostpointercapture", releaseJoystick);
   }
 
+  function releasePointerAnywhere(event) {
+    if (event.pointerId === joystickPointer) resetJoystick();
+
+    const active = buttonPointers.get(event.pointerId);
+    if (active) {
+      buttonPointers.delete(event.pointerId);
+      active.element.classList.remove("is-pressed");
+      active.element.removeAttribute("aria-pressed");
+      releaseKey(active.key);
+    }
+  }
+
+  function releaseEndedJoystickTouch(event) {
+    if (joystickPointer === null) return;
+    const endedTouches = Array.from(event.changedTouches || []);
+    const trackedTouchEnded = joystickTouchIdentifier !== null &&
+      endedTouches.some((touch) => touch.identifier === joystickTouchIdentifier);
+    if (trackedTouchEnded || event.touches?.length === 0) resetJoystick();
+  }
+
   document.getElementById("mobile-controls")?.addEventListener("contextmenu", (event) => {
     event.preventDefault();
   });
   for (const eventName of ["touchstart", "touchmove", "dblclick", "selectstart", "dragstart", "gesturestart"]) {
     document.addEventListener(eventName, suppressBrowserGesture, { capture: true, passive: false });
   }
+  document.addEventListener("pointerup", releasePointerAnywhere, true);
+  document.addEventListener("pointercancel", releasePointerAnywhere, true);
+  document.addEventListener("touchend", releaseEndedJoystickTouch, { capture: true, passive: false });
+  document.addEventListener("touchcancel", releaseEndedJoystickTouch, { capture: true, passive: false });
   coarsePointer.addEventListener?.("change", updateMobileMode);
   window.addEventListener("blur", releaseAllControls);
+  window.addEventListener("pagehide", releaseAllControls);
+  window.addEventListener("orientationchange", releaseAllControls);
   document.addEventListener("visibilitychange", () => {
     if (document.hidden) releaseAllControls();
   });

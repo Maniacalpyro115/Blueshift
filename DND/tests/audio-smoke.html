@@ -1,0 +1,113 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Audio smoke test</title>
+</head>
+<body>
+  <script>
+    window.__audioStarts = [];
+    window.__audioGains = [];
+    window.__audioFetches = 0;
+    window.__htmlAudioPlays = 0;
+
+    class FakeAudioContext {
+      constructor() {
+        this.state = "suspended";
+        this.sampleRate = 48000;
+        this.destination = {};
+      }
+
+      resume() {
+        this.state = "running";
+        return Promise.resolve();
+      }
+
+      decodeAudioData() {
+        return Promise.resolve({ decoded: true, duration: 1 });
+      }
+
+      createBuffer() {
+        return { silent: true, duration: 0 };
+      }
+
+      createBufferSource() {
+        return {
+          buffer: null,
+          connect() {},
+          start() { window.__audioStarts.push(this.buffer); }
+        };
+      }
+
+      createGain() {
+        const gain = { gain: { value: 0 }, connect() {} };
+        window.__audioGains.push(gain);
+        return gain;
+      }
+    }
+
+    class FakeAudio {
+      constructor(src) {
+        this.src = new URL(src, document.baseURI).href;
+        this.currentSrc = this.src;
+        this.volume = 1;
+        this.currentTime = 0;
+        this.paused = true;
+      }
+
+      cloneNode() {
+        const clone = new FakeAudio(this.src);
+        clone.volume = this.volume;
+        return clone;
+      }
+
+      play() {
+        this.paused = false;
+        window.__htmlAudioPlays++;
+        return Promise.resolve();
+      }
+    }
+
+    window.AudioContext = FakeAudioContext;
+    window.Audio = FakeAudio;
+    window.fetch = () => {
+      window.__audioFetches++;
+      return Promise.resolve({
+        ok: true,
+        arrayBuffer: () => Promise.resolve(new ArrayBuffer(8))
+      });
+    };
+  </script>
+  <script src="../engine/assets.js"></script>
+  <script>
+    (async () => {
+      try {
+        const { loadSound, preloadSound, unlockAudio, playSound } = window.SoulBattle.assets;
+        const sound = loadSound("sounds/test.wav");
+        sound.volume = 0.3;
+        const duplicate = loadSound("sounds/test.wav");
+        await Promise.all([preloadSound(sound), preloadSound(duplicate)]);
+        await unlockAudio();
+
+        playSound(sound);
+        playSound(sound);
+        playSound(sound, 0.5);
+
+        const decodedStarts = window.__audioStarts.filter((buffer) => buffer?.decoded).length;
+        const soundGains = window.__audioGains.slice(-3).map((gain) => gain.gain.value);
+        const volumeCorrect = soundGains.length === 3 &&
+          soundGains[0] === 0.3 && soundGains[1] === 0.3 && soundGains[2] === 0.15;
+        const pass = decodedStarts === 3 && volumeCorrect &&
+          window.__audioFetches === 1 && window.__htmlAudioPlays === 0;
+
+        document.body.dataset.decodedStarts = String(decodedStarts);
+        document.body.dataset.fetches = String(window.__audioFetches);
+        document.body.dataset.smoke = pass ? "pass" : "fail";
+      } catch (error) {
+        document.body.dataset.error = error?.message || String(error);
+        document.body.dataset.smoke = "fail";
+      }
+    })();
+  </script>
+</body>
+</html>

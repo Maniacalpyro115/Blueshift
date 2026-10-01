@@ -89,14 +89,24 @@
       window.dispatchEvent(new Event("blur"));
       const blurReleased = !input.isHeld("ArrowRight");
 
+      pointer(joystick, "pointerdown", 5, 205, 160);
+      pointer(document, "pointerup", 5, 205, 160);
+      const documentReleaseRecovered = !input.isHeld("ArrowRight");
+
+      pointer(joystick, "pointerdown", 6, 205, 160);
+      window.dispatchEvent(new Event("pagehide"));
+      const pageHideReleased = !input.isHeld("ArrowRight");
+
       document.body.dataset.desktopHidden = String(desktopHidden);
       document.body.dataset.aPressed = String(aPressed);
       document.body.dataset.bPressed = String(bPressed);
       document.body.dataset.diagonal = String(downRight && upLeft);
+      document.body.dataset.releaseRecovery = String(documentReleaseRecovered && pageHideReleased);
       document.body.dataset.gesturesSuppressed = String(suppressedEvents && mobileTouchActionDisabled);
       document.body.dataset.smoke = desktopHidden && aPressed && aDoesNotRepeat && aReleased
         && desktopSelectionAllowed && suppressedEvents && mobileTouchActionDisabled
         && bPressed && downRight && upLeft && joystickReleased && blurReleased
+        && documentReleaseRecovered && pageHideReleased
         ? "pass"
         : "fail";
     })();

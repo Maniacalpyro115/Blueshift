@@ -44,6 +44,10 @@ try {
     $mobileControlsHtml = & $chrome --headless=new --disable-gpu --no-first-run --disable-default-apps `
       --virtual-time-budget=800 --dump-dom $mobileControlsUrl 2>&1 | Out-String
     if ($mobileControlsHtml -notmatch 'data-smoke="pass"') { throw "mobile controls browser smoke test failed" }
+    $audioUrl = "file:///" + (($root -replace "\\", "/") + "/tests/audio-smoke.html")
+    $audioHtml = & $chrome --headless=new --disable-gpu --no-first-run --disable-default-apps `
+      --virtual-time-budget=800 --dump-dom $audioUrl 2>&1 | Out-String
+    if ($audioHtml -notmatch 'data-smoke="pass"') { throw "audio browser smoke test failed" }
     $navigationUrl = "file:///" + (($root -replace "\\", "/") + "/tests/selection-navigation-smoke.html")
     $navigationHtml = & $chrome --headless=new --disable-gpu --no-first-run --disable-default-apps --allow-file-access-from-files `
       --virtual-time-budget=1800 --dump-dom $navigationUrl 2>&1 | Out-String
