@@ -10,15 +10,28 @@
     window.__audioGains = [];
     window.__audioFetches = 0;
     window.__htmlAudioPlays = 0;
+    window.__audioContextConstructions = 0;
+    window.__dispatchingGesture = false;
+    window.__contextCreatedDuringGesture = false;
+    window.__htmlPlayedSources = [];
+    window.__standaloneAudioTest = new URLSearchParams(location.search).has("standalone");
+    if (window.__standaloneAudioTest) {
+      Object.defineProperty(navigator, "standalone", { value: true, configurable: true });
+    }
 
     class FakeAudioContext {
       constructor() {
+        window.__audioContextConstructions++;
+        window.__contextCreatedDuringGesture = window.__dispatchingGesture;
         this.state = "suspended";
         this.sampleRate = 48000;
         this.destination = {};
       }
 
       resume() {
+        if (!window.__contextCreatedDuringGesture) {
+          return Promise.reject(new Error("AudioContext was created outside a user gesture"));
+        }
         this.state = "running";
         return Promise.resolve();
       }
@@ -53,6 +66,7 @@
         this.volume = 1;
         this.currentTime = 0;
         this.paused = true;
+        this.ended = false;
       }
 
       cloneNode() {
@@ -63,9 +77,17 @@
 
       play() {
         this.paused = false;
+        this.ended = false;
         window.__htmlAudioPlays++;
+        window.__htmlPlayedSources.push(this.src);
         return Promise.resolve();
       }
+
+      pause() {
+        this.paused = true;
+      }
+
+      addEventListener() {}
     }
 
     window.AudioContext = FakeAudioContext;
@@ -87,21 +109,41 @@
         sound.volume = 0.3;
         const duplicate = loadSound("sounds/test.wav");
         await Promise.all([preloadSound(sound), preloadSound(duplicate)]);
+        const contextCreatedLazily = window.__audioContextConstructions === 0;
+
+        document.addEventListener("pointerdown", () => playSound(sound), { once: true });
+        window.__dispatchingGesture = true;
+        document.dispatchEvent(new PointerEvent("pointerdown", { bubbles: true }));
+        window.__dispatchingGesture = false;
         await unlockAudio();
 
-        playSound(sound);
-        playSound(sound);
-        playSound(sound, 0.5);
+        if (window.__standaloneAudioTest) {
+          playSound(sound);
+          playSound(sound, 0.5);
+        } else {
+          playSound(sound);
+          playSound(sound);
+          playSound(sound, 0.5);
+        }
 
         const decodedStarts = window.__audioStarts.filter((buffer) => buffer?.decoded).length;
         const soundGains = window.__audioGains.slice(-3).map((gain) => gain.gain.value);
         const volumeCorrect = soundGains.length === 3 &&
           soundGains[0] === 0.3 && soundGains[1] === 0.3 && soundGains[2] === 0.15;
-        const pass = decodedStarts === 3 && volumeCorrect &&
-          window.__audioFetches === 1 && window.__htmlAudioPlays === 0;
+        const standaloneSoundPlays = window.__htmlPlayedSources
+          .filter((src) => src.endsWith("/sounds/test.wav")).length;
+        const pass = window.__standaloneAudioTest
+          ? standaloneSoundPlays === 3 && window.__audioContextConstructions === 0
+          : decodedStarts === 3 && volumeCorrect && contextCreatedLazily &&
+            window.__audioContextConstructions === 1 && window.__contextCreatedDuringGesture &&
+            window.__audioFetches === 1 && window.__htmlAudioPlays === 1;
 
         document.body.dataset.decodedStarts = String(decodedStarts);
         document.body.dataset.fetches = String(window.__audioFetches);
+        document.body.dataset.lazyContext = String(contextCreatedLazily);
+        document.body.dataset.gestureContext = String(window.__contextCreatedDuringGesture);
+        document.body.dataset.standalone = String(window.__standaloneAudioTest);
+        document.body.dataset.standalonePlays = String(standaloneSoundPlays);
         document.body.dataset.smoke = pass ? "pass" : "fail";
       } catch (error) {
         document.body.dataset.error = error?.message || String(error);

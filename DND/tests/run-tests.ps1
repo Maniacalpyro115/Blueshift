@@ -26,6 +26,8 @@ try {
 
   $chrome = "C:\Program Files\Google\Chrome\Application\chrome.exe"
   if (Test-Path $chrome) {
+    # Chrome occasionally writes harmless diagnostics to stderr even when it exits successfully.
+    $ErrorActionPreference = "Continue"
     foreach ($fight in @("sable", "zach", "dandelion")) {
       $url = "file:///" + (($root -replace "\\", "/") + "/tests/$fight-smoke.html?fight=$fight")
       $html = & $chrome --headless=new --disable-gpu --no-first-run --disable-default-apps `
@@ -48,6 +50,10 @@ try {
     $audioHtml = & $chrome --headless=new --disable-gpu --no-first-run --disable-default-apps `
       --virtual-time-budget=800 --dump-dom $audioUrl 2>&1 | Out-String
     if ($audioHtml -notmatch 'data-smoke="pass"') { throw "audio browser smoke test failed" }
+    $standaloneAudioUrl = $audioUrl + "?standalone=1"
+    $standaloneAudioHtml = & $chrome --headless=new --disable-gpu --no-first-run --disable-default-apps `
+      --virtual-time-budget=800 --dump-dom $standaloneAudioUrl 2>&1 | Out-String
+    if ($standaloneAudioHtml -notmatch 'data-smoke="pass"') { throw "standalone audio browser smoke test failed" }
     $navigationUrl = "file:///" + (($root -replace "\\", "/") + "/tests/selection-navigation-smoke.html")
     $navigationHtml = & $chrome --headless=new --disable-gpu --no-first-run --disable-default-apps --allow-file-access-from-files `
       --virtual-time-budget=1800 --dump-dom $navigationUrl 2>&1 | Out-String
