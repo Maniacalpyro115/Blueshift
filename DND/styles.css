@@ -11,6 +11,7 @@ body {
   background: #050505;
   color: #ffffff;
   font-family: "Courier New", Courier, monospace;
+  overscroll-behavior: none;
 }
 
 body {
@@ -21,6 +22,7 @@ body {
 #game-shell {
   width: 100vw;
   height: 100vh;
+  height: 100dvh;
   display: grid;
   place-items: center;
   background: #000;
@@ -32,4 +34,153 @@ canvas {
   height: min(100vh, calc(100vw * 650 / 900));
   image-rendering: pixelated;
   background: #000;
+}
+
+#mobile-controls,
+#mobile-rotate-prompt {
+  display: none;
+}
+
+@media (hover: none) and (pointer: coarse) and (orientation: landscape) {
+  html.mobile-input-enabled {
+    --mobile-control-zone: clamp(92px, 14vw, 150px);
+  }
+
+  html.mobile-input-enabled #game-shell {
+    padding-top: env(safe-area-inset-top);
+    padding-right: env(safe-area-inset-right);
+    padding-bottom: env(safe-area-inset-bottom);
+    padding-left: env(safe-area-inset-left);
+  }
+
+  html.mobile-input-enabled canvas {
+    width: min(
+      calc(
+        100vw - var(--mobile-control-zone) - var(--mobile-control-zone) -
+        env(safe-area-inset-left) - env(safe-area-inset-right)
+      ),
+      calc(
+        (100dvh - env(safe-area-inset-top) - env(safe-area-inset-bottom)) * 900 / 650
+      )
+    );
+    height: min(
+      calc(100dvh - env(safe-area-inset-top) - env(safe-area-inset-bottom)),
+      calc(
+        (
+          100vw - var(--mobile-control-zone) - var(--mobile-control-zone) -
+          env(safe-area-inset-left) - env(safe-area-inset-right)
+        ) * 650 / 900
+      )
+    );
+  }
+
+  html.mobile-input-enabled #mobile-controls {
+    position: fixed;
+    inset: 0;
+    z-index: 10;
+    display: block;
+    pointer-events: none;
+    user-select: none;
+    -webkit-user-select: none;
+    -webkit-touch-callout: none;
+  }
+
+  .mobile-control-side {
+    position: absolute;
+    top: env(safe-area-inset-top);
+    bottom: env(safe-area-inset-bottom);
+    width: var(--mobile-control-zone);
+    pointer-events: none;
+  }
+
+  .mobile-control-side-left {
+    left: env(safe-area-inset-left);
+  }
+
+  .mobile-control-side-right {
+    right: env(safe-area-inset-right);
+  }
+
+  .mobile-action-button,
+  #mobile-joystick {
+    position: absolute;
+    pointer-events: auto;
+    touch-action: none;
+  }
+
+  .mobile-action-button {
+    width: clamp(50px, 14vmin, 66px);
+    height: clamp(50px, 14vmin, 66px);
+    padding: 0;
+    border: 3px solid rgba(255, 255, 255, 0.86);
+    border-radius: 50%;
+    background: rgba(16, 16, 16, 0.72);
+    box-shadow: 0 3px 0 rgba(0, 0, 0, 0.72), inset 0 0 12px rgba(255, 255, 255, 0.08);
+    color: #fff;
+    font: bold clamp(22px, 6vmin, 30px) "Courier New", Courier, monospace;
+  }
+
+  .mobile-action-button.is-pressed {
+    transform: translateY(3px) scale(0.96);
+    box-shadow: inset 0 0 14px rgba(255, 255, 255, 0.18);
+  }
+
+  .mobile-b-button {
+    left: 4px;
+    bottom: clamp(20px, 8vmin, 44px);
+    border-color: rgba(242, 140, 40, 0.92);
+  }
+
+  .mobile-a-button {
+    right: 4px;
+    bottom: clamp(76px, 23vmin, 116px);
+    border-color: rgba(255, 204, 51, 0.96);
+  }
+
+  #mobile-joystick {
+    right: 4px;
+    bottom: clamp(20px, 8vmin, 44px);
+    width: clamp(88px, 24vmin, 124px);
+    height: clamp(88px, 24vmin, 124px);
+  }
+
+  .mobile-joystick-ring {
+    position: absolute;
+    inset: 0;
+    border: 3px solid rgba(255, 255, 255, 0.72);
+    border-radius: 50%;
+    background:
+      linear-gradient(90deg, transparent 48%, rgba(255, 255, 255, 0.13) 48%, rgba(255, 255, 255, 0.13) 52%, transparent 52%),
+      linear-gradient(transparent 48%, rgba(255, 255, 255, 0.13) 48%, rgba(255, 255, 255, 0.13) 52%, transparent 52%),
+      rgba(16, 16, 16, 0.58);
+    box-shadow: inset 0 0 16px rgba(0, 0, 0, 0.72);
+  }
+
+  #mobile-joystick-knob {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 46%;
+    height: 46%;
+    border: 2px solid rgba(255, 204, 51, 0.9);
+    border-radius: 50%;
+    background: rgba(91, 33, 24, 0.92);
+    box-shadow: 0 3px 7px rgba(0, 0, 0, 0.75);
+    transform: translate(-50%, -50%);
+  }
+}
+
+@media (hover: none) and (pointer: coarse) and (orientation: portrait) {
+  html.mobile-input-enabled #mobile-rotate-prompt {
+    position: fixed;
+    inset: 0;
+    z-index: 20;
+    display: grid;
+    place-items: center;
+    padding: 28px;
+    background: rgba(0, 0, 0, 0.94);
+    color: #fff;
+    font: bold 20px "Courier New", Courier, monospace;
+    text-align: center;
+  }
 }

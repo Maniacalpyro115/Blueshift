@@ -53,7 +53,9 @@
       window.dispatchEvent(new KeyboardEvent("keydown", { key: "ArrowLeft" }));
       const leftEndDidNotLoop = window.SoulBattle.game?.focusedCard === "dandelion"
         && window.__menuMovePlays === 0;
-      window.dispatchEvent(new KeyboardEvent("keydown", { key: "ArrowRight" }));
+      window.dispatchEvent(new CustomEvent("soulbattle:virtual-keydown", {
+        detail: { key: "ArrowRight", source: "mobile-controls" }
+      }));
       document.getElementById("game").dispatchEvent(new PointerEvent("pointerdown", {
         clientX: 540,
         clientY: 300,

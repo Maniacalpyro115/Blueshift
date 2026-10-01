@@ -40,6 +40,10 @@ try {
     $selectorHtml = & $chrome --headless=new --disable-gpu --no-first-run --disable-default-apps `
       --virtual-time-budget=800 --dump-dom $selectorUrl 2>&1 | Out-String
     if ($selectorHtml -notmatch 'data-smoke="pass"') { throw "encounter selector browser smoke test failed" }
+    $mobileControlsUrl = "file:///" + (($root -replace "\\", "/") + "/tests/mobile-controls-smoke.html")
+    $mobileControlsHtml = & $chrome --headless=new --disable-gpu --no-first-run --disable-default-apps `
+      --virtual-time-budget=800 --dump-dom $mobileControlsUrl 2>&1 | Out-String
+    if ($mobileControlsHtml -notmatch 'data-smoke="pass"') { throw "mobile controls browser smoke test failed" }
     $navigationUrl = "file:///" + (($root -replace "\\", "/") + "/tests/selection-navigation-smoke.html")
     $navigationHtml = & $chrome --headless=new --disable-gpu --no-first-run --disable-default-apps --allow-file-access-from-files `
       --virtual-time-budget=1800 --dump-dom $navigationUrl 2>&1 | Out-String

@@ -1,0 +1,89 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <title>Mobile controls smoke test</title>
+  <link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+  <main id="game-shell">
+    <canvas id="game" width="900" height="650"></canvas>
+  </main>
+  <div id="mobile-controls">
+    <button id="mobile-b-button" type="button">B</button>
+    <button id="mobile-a-button" type="button">A</button>
+    <div id="mobile-joystick">
+      <div id="mobile-joystick-knob"></div>
+    </div>
+  </div>
+  <div id="mobile-rotate-prompt"></div>
+  <script>window.addEventListener("error", () => { document.body.dataset.smoke = "fail"; });</script>
+  <script src="../engine/input.js"></script>
+  <script src="../engine/mobile-controls.js"></script>
+  <script>
+    (() => {
+      const canvas = document.getElementById("game");
+      const controls = document.getElementById("mobile-controls");
+      const joystick = document.getElementById("mobile-joystick");
+      const input = window.SoulBattle.input.createInput({ canvas, width: 900, height: 650 });
+      const desktopHidden = getComputedStyle(controls).display === "none";
+
+      controls.style.display = "block";
+      joystick.style.position = "fixed";
+      joystick.style.left = "100px";
+      joystick.style.top = "100px";
+      joystick.style.width = "120px";
+      joystick.style.height = "120px";
+
+      const pointer = (target, type, pointerId, clientX = 0, clientY = 0) => {
+        target.dispatchEvent(new PointerEvent(type, {
+          bubbles: true,
+          pointerId,
+          pointerType: "touch",
+          clientX,
+          clientY
+        }));
+      };
+
+      const a = document.getElementById("mobile-a-button");
+      pointer(a, "pointerdown", 1);
+      const aPressed = input.confirm && input.enter && input.isHeld("Enter");
+      input.consume();
+      const aDoesNotRepeat = !input.confirm;
+      pointer(a, "pointerup", 1);
+      const aReleased = !input.isHeld("Enter");
+
+      const b = document.getElementById("mobile-b-button");
+      pointer(b, "pointerdown", 2);
+      const bPressed = input.cancel && input.escape && input.isHeld("Escape");
+      pointer(b, "pointerup", 2);
+      input.consume();
+
+      pointer(joystick, "pointerdown", 3, 205, 205);
+      const downRight = input.right && input.down
+        && input.isHeld("ArrowRight") && input.isHeld("ArrowDown");
+      input.consume();
+      pointer(joystick, "pointermove", 3, 115, 115);
+      const upLeft = input.left && input.up
+        && input.isHeld("ArrowLeft") && input.isHeld("ArrowUp")
+        && !input.isHeld("ArrowRight") && !input.isHeld("ArrowDown");
+      pointer(joystick, "pointerup", 3, 115, 115);
+      const joystickReleased = !input.isHeld("ArrowLeft") && !input.isHeld("ArrowUp");
+
+      pointer(joystick, "pointerdown", 4, 205, 160);
+      window.dispatchEvent(new Event("blur"));
+      const blurReleased = !input.isHeld("ArrowRight");
+
+      document.body.dataset.desktopHidden = String(desktopHidden);
+      document.body.dataset.aPressed = String(aPressed);
+      document.body.dataset.bPressed = String(bPressed);
+      document.body.dataset.diagonal = String(downRight && upLeft);
+      document.body.dataset.smoke = desktopHidden && aPressed && aDoesNotRepeat && aReleased
+        && bPressed && downRight && upLeft && joystickReleased && blurReleased
+        ? "pass"
+        : "fail";
+    })();
+  </script>
+</body>
+</html>
