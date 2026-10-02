@@ -299,12 +299,6 @@
       }
     }
 
-    function onVirtualKeyDown(event) {
-      const key = event.detail?.key;
-      if (key === "ArrowUp" || key === "ArrowDown") return;
-      onKeyDown({ key, preventDefault() {} });
-    }
-
     function canvasPoint(event) {
       const bounds = canvas.getBoundingClientRect();
       return {
@@ -356,7 +350,6 @@
     }
 
     window.addEventListener("keydown", onKeyDown);
-    window.addEventListener("soulbattle:virtual-keydown", onVirtualKeyDown);
     canvas.addEventListener("pointermove", onPointerMove);
     canvas.addEventListener("pointerleave", onPointerLeave);
     canvas.addEventListener("pointerdown", onPointerDown);

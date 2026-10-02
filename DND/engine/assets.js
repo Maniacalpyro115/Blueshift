@@ -3,22 +3,6 @@
 
   window.SoulBattle = window.SoulBattle || {};
 
-  let musicContext = null;
-  const soundBufferCache = new Map();
-  const standaloneAudioMode = navigator.standalone === true;
-  const standaloneVoices = standaloneAudioMode
-    ? Array.from({ length: 12 }, () => {
-      const voice = new Audio();
-      voice.preload = "auto";
-      return voice;
-    })
-    : [];
-  const standaloneMusicTracks = new Set();
-  let standaloneVoiceIndex = 0;
-  let standaloneVoicesUnlocked = false;
-  let audioPrimeStarted = false;
-  let audioUnlocked = false;
-
   function loadImage(src) {
     const img = new Image();
     img.src = src;
@@ -32,184 +16,33 @@
     const audio = new Audio(src);
     audio.preload = "auto";
     audio.volume = 0.3;
-    audio._soulBattleSrc = src;
-    preloadSound(audio);
     return audio;
-  }
-
-  function soundSource(sound) {
-    if (!sound) return "";
-    const src = sound._soulBattleSrc || sound.currentSrc || sound.src;
-    if (typeof src !== "string" || !src) return "";
-    try {
-      return new URL(src, document.baseURI).href;
-    } catch (_error) {
-      return src;
-    }
-  }
-
-  function preloadSound(sound) {
-    const src = soundSource(sound);
-    if (!src || typeof fetch !== "function") return Promise.resolve(null);
-
-    let entry = soundBufferCache.get(src);
-    if (!entry) {
-      entry = { data: null, buffer: null, loading: null, decoding: null };
-      entry.loading = fetch(src)
-        .then((response) => {
-          if (!response.ok) throw new Error(`Failed to load sound: ${response.status} ${src}`);
-          return response.arrayBuffer();
-        })
-        .then((audioData) => {
-          entry.data = audioData;
-          return audioData;
-        })
-        .catch(() => null);
-      soundBufferCache.set(src, entry);
-    }
-
-    sound._soulBattleBufferEntry = entry;
-    return musicContext ? decodeSoundEntry(entry, musicContext) : entry.loading;
-  }
-
-  function decodeSoundEntry(entry, context) {
-    if (entry.buffer) return Promise.resolve(entry.buffer);
-    if (entry.decoding) return entry.decoding;
-
-    entry.decoding = entry.loading
-      .then((audioData) => {
-        if (!audioData) return null;
-        const decodeCopy = typeof audioData.slice === "function" ? audioData.slice(0) : audioData;
-        return context.decodeAudioData(decodeCopy);
-      })
-      .then((buffer) => {
-        entry.buffer = buffer;
-        return buffer;
-      })
-      .catch(() => null);
-    return entry.decoding;
-  }
-
-  function startBufferedSound(context, buffer, volume) {
-    const source = context.createBufferSource();
-    const gain = context.createGain();
-    source.buffer = buffer;
-    gain.gain.value = volume;
-    source.connect(gain);
-    gain.connect(context.destination);
-    source.start(0);
-  }
-
-  function playHtmlSound(sound, volumeScale) {
-    const useClone = volumeScale !== 1 || sound.paused === false;
-    const voice = useClone && typeof sound.cloneNode === "function"
-      ? sound.cloneNode(true)
-      : sound;
-    voice.volume = Math.max(0, Math.min(1, sound.volume * volumeScale));
-    voice.currentTime = 0;
-    const playResult = voice.play();
-    playResult?.catch?.(() => {
-      // Web Audio will take over once the browser has accepted the first gesture.
-    });
-  }
-
-  function unlockStandaloneAudio() {
-    if (!standaloneAudioMode) return false;
-
-    if (!standaloneVoicesUnlocked) {
-      const unlockSrc = new URL("sounds/snd_select.wav", document.baseURI).href;
-      for (const voice of standaloneVoices) {
-        voice.src = unlockSrc;
-        voice.volume = 0;
-        voice.currentTime = 0;
-        voice.play()?.catch?.(() => {});
-      }
-      standaloneVoicesUnlocked = true;
-    }
-
-    for (const music of standaloneMusicTracks) {
-      if (music.playRequested && music.htmlAudio?.paused) {
-        music.htmlAudio.play()?.catch?.(() => {});
-      }
-    }
-    audioUnlocked = true;
-    return true;
-  }
-
-  function playStandaloneSound(sound, volume) {
-    if (!standaloneVoices.length) {
-      playHtmlSound(sound, volume / Math.max(0.0001, sound.volume));
-      return;
-    }
-
-    const idleVoice = standaloneVoices.find((voice) => voice.paused || voice.ended);
-    const voice = idleVoice || standaloneVoices[standaloneVoiceIndex++ % standaloneVoices.length];
-    voice.src = soundSource(sound);
-    voice.volume = volume;
-    voice.currentTime = 0;
-    voice.play()?.catch?.(() => {});
-  }
-
-  function unlockAudio() {
-    if (standaloneAudioMode) return Promise.resolve(unlockStandaloneAudio());
-
-    const context = getMusicContext();
-    if (!context) return Promise.resolve(false);
-
-    if (!audioPrimeStarted) {
-      const silentBuffer = context.createBuffer(1, 1, context.sampleRate || 44100);
-      const silentSource = context.createBufferSource();
-      silentSource.buffer = silentBuffer;
-      silentSource.connect(context.destination);
-      silentSource.start(0);
-      audioPrimeStarted = true;
-    }
-
-    const resume = context.state !== "running" ? context.resume() : Promise.resolve();
-    return Promise.resolve(resume)
-      .then(() => {
-        if (context.state !== "running") return false;
-        audioUnlocked = true;
-        return Promise.all(
-          [...soundBufferCache.values()].map((entry) => decodeSoundEntry(entry, context))
-        ).then(() => true);
-      })
-      .catch(() => false);
   }
 
   function playSound(sound, volumeScale = 1) {
     if (!sound) return;
 
-    const scale = Number.isFinite(volumeScale) ? Math.max(0, volumeScale) : 1;
-    const volume = Math.max(0, Math.min(1, sound.volume * scale));
-    const context = musicContext;
-    const src = soundSource(sound);
-    const entry = sound._soulBattleBufferEntry || soundBufferCache.get(src);
-    window.dispatchEvent(new CustomEvent("soulbattle:sound-played", {
-      detail: { src, volume }
-    }));
-
-    if (standaloneAudioMode) {
-      playStandaloneSound(sound, volume);
+    if (
+      Number.isFinite(volumeScale) &&
+      volumeScale !== 1 &&
+      typeof sound.cloneNode === "function"
+    ) {
+      const scaledSound = sound.cloneNode(true);
+      scaledSound.volume = Math.max(0, Math.min(1, sound.volume * volumeScale));
+      scaledSound.currentTime = 0;
+      scaledSound.play().catch(() => {
+        // Browser may block sound until the player has interacted with the page.
+      });
       return;
     }
 
-    if (context && entry?.buffer) {
-      if (context.state === "running") {
-        startBufferedSound(context, entry.buffer, volume);
-      } else {
-        unlockAudio().then((unlocked) => {
-          if (unlocked) startBufferedSound(context, entry.buffer, volume);
-          else playHtmlSound(sound, scale);
-        });
-      }
-      return;
-    }
-
-    if (context && entry) decodeSoundEntry(entry, context);
-    else preloadSound(sound);
-    playHtmlSound(sound, scale);
+    sound.currentTime = 0;
+    sound.play().catch(() => {
+      // Browser may block sound until the player has interacted with the page.
+    });
   }
+
+  let musicContext = null;
 
   function getMusicContext() {
     if (!musicContext) {
@@ -220,13 +53,6 @@
 
     return musicContext;
   }
-
-  for (const eventName of ["pointerdown", "touchstart", "keydown"]) {
-    document.addEventListener(eventName, unlockAudio, { capture: true, passive: true });
-  }
-  document.addEventListener("visibilitychange", () => {
-    if (!document.hidden && audioUnlocked) unlockAudio();
-  });
 
   function createMusicTrack(config, fallbackSrc) {
     const data = config && typeof config === "object"
@@ -245,30 +71,8 @@
       gain: null,
       playRequested: false,
       playToken: 0,
-      startedAt: null,
-      htmlAudio: null,
-      htmlLoopCount: 0
+      startedAt: null
     };
-  }
-
-  function getStandaloneMusicAudio(music) {
-    if (music.htmlAudio) return music.htmlAudio;
-
-    const audio = new Audio(music.src);
-    const hasLoopPoints = Number.isFinite(music.loopStart) &&
-      Number.isFinite(music.loopEnd) && music.loopEnd > music.loopStart;
-    audio.preload = "auto";
-    audio.volume = music.volume;
-    audio.loop = !hasLoopPoints;
-    audio.addEventListener("timeupdate", () => {
-      if (!hasLoopPoints || audio.currentTime < music.loopEnd) return;
-      music.htmlLoopCount++;
-      audio.currentTime = music.loopStart;
-      if (music.playRequested) audio.play()?.catch?.(() => {});
-    });
-    music.htmlAudio = audio;
-    standaloneMusicTracks.add(music);
-    return audio;
   }
 
   function loadMusicBuffer(music, context) {
@@ -332,7 +136,6 @@
   }
 
   function getMusicPosition(music) {
-    if (standaloneAudioMode && music?.htmlAudio) return music.htmlAudio.currentTime;
     if (!music || !music.source || !Number.isFinite(music.startedAt) || !musicContext) return null;
 
     const elapsed = Math.max(0, musicContext.currentTime - music.startedAt);
@@ -347,29 +150,12 @@
   }
 
   function getMusicElapsed(music) {
-    if (standaloneAudioMode && music?.htmlAudio) {
-      const currentTime = music.htmlAudio.currentTime;
-      const hasLoopPoints = Number.isFinite(music.loopStart) &&
-        Number.isFinite(music.loopEnd) && music.loopEnd > music.loopStart;
-      if (!hasLoopPoints || music.htmlLoopCount === 0) return currentTime;
-      return music.loopStart + music.htmlLoopCount * (music.loopEnd - music.loopStart) +
-        Math.max(0, currentTime - music.loopStart);
-    }
     if (!music || !music.source || !Number.isFinite(music.startedAt) || !musicContext) return null;
     return Math.max(0, musicContext.currentTime - music.startedAt);
   }
 
   function playMusic(music) {
     if (!music) return;
-
-    if (standaloneAudioMode) {
-      music.playRequested = true;
-      music.playToken++;
-      const audio = getStandaloneMusicAudio(music);
-      audio.volume = music.volume;
-      audio.play()?.catch?.(() => {});
-      return;
-    }
 
     const context = getMusicContext();
     if (!context) return;
@@ -392,12 +178,6 @@
     music.playRequested = false;
     music.playToken++;
 
-    if (music.htmlAudio) {
-      music.htmlAudio.pause();
-      music.htmlAudio.currentTime = 0;
-      music.htmlLoopCount = 0;
-    }
-
     if (music.source) {
       music.source.onended = null;
       music.source.stop();
@@ -416,7 +196,6 @@
     if (!music || !Number.isFinite(volume)) return;
     music.volume = Math.max(0, Math.min(1, volume));
     if (music.gain) music.gain.gain.value = music.volume;
-    if (music.htmlAudio) music.htmlAudio.volume = music.volume;
   }
 
   function addSpriteMap(target, sprites) {
@@ -588,8 +367,6 @@
 
   window.SoulBattle.assets = {
     loadSound,
-    preloadSound,
-    unlockAudio,
     createAssets,
     playSound,
     playMusic,

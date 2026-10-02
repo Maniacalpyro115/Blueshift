@@ -18,9 +18,6 @@ Open `index.html` in a browser, or drop this folder into your GitHub Pages repo.
 - Enter / Z: select, confirm, or strike during the attack meter
 - Space / Click: also confirms or strikes
 - Esc / X: cancel out of Fight, Act, Item, or Mercy selection
-- Touchscreen landscape: use the right-side joystick to move or navigate, A to select/confirm, and B to cancel or go back
-
-On touch-oriented phones and tablets, portrait mode displays a prompt to rotate the device. The virtual controls remain hidden on desktop devices.
 
 Purple attacks change movement: left/right still move normally, but up/down jumps the soul between the three ropes.
 Blue attacks apply gravity: left/right move along the ground, and up jumps. Holding up makes the jump higher than tapping it.

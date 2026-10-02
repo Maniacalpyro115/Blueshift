@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Soul Battle</title>
   <link rel="stylesheet" href="styles.css" />
 </head>
@@ -10,24 +10,6 @@
   <main id="game-shell">
     <canvas id="game" width="900" height="650" aria-label="Soul Battle game canvas"></canvas>
   </main>
-
-  <div id="mobile-controls" aria-label="Touch controls">
-    <div class="mobile-control-side mobile-control-side-left">
-      <button id="mobile-b-button" class="mobile-action-button mobile-b-button" type="button" aria-label="Cancel or go back">B</button>
-      <button id="mobile-a-button" class="mobile-action-button mobile-a-button" type="button" aria-label="Select or confirm">A</button>
-    </div>
-    <div class="mobile-control-side mobile-control-side-right">
-      <div id="mobile-joystick" role="application" aria-label="Movement joystick">
-        <div class="mobile-joystick-ring">
-          <div id="mobile-joystick-knob"></div>
-        </div>
-      </div>
-    </div>
-  </div>
-
-  <div id="mobile-rotate-prompt" role="status">
-    <span>Rotate your device to landscape</span>
-  </div>
 
   <script src="players/party.js"></script>
   <script src="engine/player-runtime.js"></script>
@@ -49,8 +31,7 @@
   <script src="engine/renderers.js"></script>
   <script src="engine/presentation.js"></script>
   <script src="engine/party-actions.js"></script>
-  <script src="engine/assets.js?v=20261001-standalone-audio"></script>
-  <script src="engine/mobile-controls.js?v=20261001-mobile-release"></script>
+  <script src="engine/assets.js"></script>
   <script src="engine/input.js"></script>
   <script src="engine/runtime.js"></script>
   <script src="game.js"></script>

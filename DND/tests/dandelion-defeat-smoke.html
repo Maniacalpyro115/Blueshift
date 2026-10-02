@@ -5,9 +5,6 @@
   <canvas id="game" width="900" height="650"></canvas>
   <script>
     const playedSounds = [];
-    window.addEventListener("soulbattle:sound-played", (event) => {
-      if (event.detail?.src) playedSounds.push(event.detail.src);
-    });
     let rafTimestamp = 0;
     const smokeParams = new URLSearchParams(location.search);
     const holdDefeatFrame = Number(smokeParams.get("hold"));

@@ -36,28 +36,13 @@
       };
     }
 
-    function pressKey(key) {
-      if (typeof key !== "string") return;
-      if (!keys.has(key)) justPressed.add(key);
-      keys.add(key);
-    }
-
-    function releaseKey(key) {
-      keys.delete(key);
-    }
-
     window.addEventListener("keydown", (e) => {
       if (USABLE_KEYS.includes(e.key)) e.preventDefault();
-      pressKey(e.key);
+      if (!keys.has(e.key)) justPressed.add(e.key);
+      keys.add(e.key);
     });
 
-    window.addEventListener("keyup", (e) => releaseKey(e.key));
-    window.addEventListener("soulbattle:virtual-keydown", (e) => pressKey(e.detail?.key));
-    window.addEventListener("soulbattle:virtual-keyup", (e) => releaseKey(e.detail?.key));
-    window.addEventListener("blur", () => {
-      keys.clear();
-      justPressed.clear();
-    });
+    window.addEventListener("keyup", (e) => keys.delete(e.key));
 
     canvas.addEventListener("pointermove", (e) => {
       mousePosition = pointerPosition(e);
